@@ -1,3 +1,6 @@
 {
-  "firebase_hosting": {}
+  "firebase_hosting": {
+    "deploymentHostingUrl": "https://tablegenproj.web.app"
+  },
+  "secrets_manager": {}
 }

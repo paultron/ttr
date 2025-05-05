@@ -16,7 +16,7 @@ function TableDisplay({ tableData }: TableProps) {
 
   return (
     <div className="overflow-x-auto">
-      <table className="min-w-full select-none divide-y border-collapse border-2 border-stone-900">
+      <table className="min-w-full divide-y border-collapse border-2 border-stone-900">
         <thead className="bg-stone-400">
           <tr>
             {columns.map((column, index) => (
@@ -55,6 +55,9 @@ function App() {
   const [tableTitle, setTableTitle] = useState("");
   const [tableDesc, setTableDesc] = useState("");
   const [tableRows, setTableRows] = useState(5);
+  const [tableItemLength, setTableItemLength] = useState("Short to medium");
+  const [tableTemp, setTableTemp] = useState(0.75);
+  //const [tableTopP, setTableTopP] = useState(0.95)
 
   const [isBusy, setIsBusy] = useState(false);
 
@@ -78,12 +81,12 @@ function App() {
 
     console.log("Generating table with:", { tableTitle, tableDesc, tableRows });
 
-    const prompt = `Generate a D&D/TTRPG style table with the name "${tableTitle}" and the description "${tableDesc}". 
+    const prompt = `Generate a table with the name "${tableTitle}" and the description "${tableDesc}". 
 The table should have ${tableRows} rows, including a header row.
 The first column of the table should be numbered starting with 1. 
 The second column should be generated names of items. 
-The third column should be descriptions of short to medium length. 
-Make the descriptions varied and not all starting with the same word, "A"/"The"/"This", etc.
+The third column should be descriptions of ${tableItemLength} length. 
+Make the descriptions varied and not all starting with the same word, "A"/"The"/"This"/etc.
 Only include additional columns if requested in the description.
 Do not include the table name or description in the table itself.`;
 
@@ -91,7 +94,7 @@ Do not include the table name or description in the table itself.`;
       model: "gemini-2.0-flash-lite",
       contents: prompt,
       config: {
-        temperature: 0.75,
+        temperature: tableTemp,
         responseMimeType: "application/json",
         responseSchema: {
           type: Type.OBJECT,
@@ -135,7 +138,7 @@ Do not include the table name or description in the table itself.`;
     }
   }
 
-  const exportTableToCSV = (ev: React.MouseEvent<HTMLButtonElement>) => {
+  const exportTableToCSV = (_ev: React.MouseEvent<HTMLButtonElement>) => {
     console.log("Exporting table to CSV");
     if (!currentTable) {
       console.error("No table to export");
@@ -189,7 +192,7 @@ Do not include the table name or description in the table itself.`;
           <input
             name="tableTitle"
             className="block text-center my-2 border-2 
-            text-slate-700
+            text-slate-700 px-2 py-1
             bg-slate-400 border-slate-700 rounded-md"
             placeholder="Legendary Loot"
             value={tableTitle}
@@ -201,7 +204,7 @@ Do not include the table name or description in the table itself.`;
           Description
           <input
             name="tableDesc"
-            className="my-2 block w-lg items-center rounded-md border-2 
+            className="my-2 block w-lg md:w-3xl items-center rounded-md border-2 
             border-slate-700 bg-slate-400 px-2 py-1
             text-center text-slate-700"
             placeholder="Items that are legendary, rare, or unique."
@@ -211,18 +214,54 @@ Do not include the table name or description in the table itself.`;
             onChange={(e) => setTableDesc(e.target.value)}
           />
         </label>
-        <label className="text-2xl text-slate-300">
-          Rows
-          <input
-            name="tableRows"
-            className="block w-24 text-slate-700 text-center my-2 border-2 bg-slate-400 border-slate-700 rounded-md"
-            placeholder="20"
-            value={tableRows}
-            type="number"
-            required={true}
-            onChange={(e) => setTableRows(Number(e.target.value))}
-          />
-        </label>
+        <div className="flex flex-row gap-8">
+          <label className="text-2xl text-slate-300">
+            Rows
+            <input
+              name="tableRows"
+              className="block w-24 text-slate-700 text-center my-2 border-2 bg-slate-400 border-slate-700 rounded-md"
+              placeholder="20"
+              value={tableRows}
+              type="number"
+              required={true}
+              min={1}
+              max={50}
+              step={1}
+              onChange={(e) => setTableRows(Number(e.target.value))}
+            />
+          </label>
+          <label className="text-2xl text-slate-300">
+            Item Desc. Length
+            <select
+              className="block w-full text-slate-700 text-center my-2 px-2 py-1
+            border-2 bg-slate-400 border-slate-700 rounded-md"
+              name="tableItemLength"
+              value={tableItemLength}
+              onChange={(e) => setTableItemLength(e.target.value)}
+            >
+              <option value="Short">Short</option>
+              <option value="Short to medium">Short to medium</option>
+              <option value="Medium">Medium</option>
+              <option value="Medium to long">Medium to long</option>
+              <option value="Long">Long</option>
+            </select>
+          </label>
+          <label className="text-2xl text-slate-300 text-center">
+            Temperature
+            <input
+              name="tableTemp"
+              className="block w-24 text-slate-700 text-center my-2 border-2 bg-slate-400 border-slate-700 rounded-md"
+              placeholder="1.0"
+              value={tableTemp}
+              type="number"
+              required={true}
+              min={0.0}
+              max={2.0}
+              step={0.05}
+              onChange={(e) => setTableTemp(Number(e.target.value))}
+            />
+          </label>
+        </div>
         <button
           type="reset"
           onClick={() => {
