@@ -15,30 +15,41 @@ function TableDisplay({ tableData }: TableProps) {
   const rows = tableData.rows;
 
   return (
-    <table className="table-auto border-collapse border-2 border-stone-900">
-      <thead className="p-2">
-        <tr>
-          {columns.map((column, index) => (
-            <th key={index}>{column}</th>
-          ))}
-        </tr>
-      </thead>
-
-      <tbody>
-        {rows.map((row, rowIndex) => (
-          <tr className="bg-stone-600 rounded-md border-1" key={rowIndex}>
-            {row.map((cell, cellIndex) => (
-              <td className="px-2 py-4" key={cellIndex}>
-                {cell}
-              </td>
+    <div className="overflow-x-auto">
+      <table className="min-w-full select-none divide-y border-collapse border-2 border-stone-900">
+        <thead className="bg-stone-400">
+          <tr>
+            {columns.map((column, index) => (
+              <th
+                className="px-6 py-3 text-center text-sm uppercase tracking-widest"
+                key={index}
+              >
+                {column}
+              </th>
             ))}
           </tr>
-        ))}
-      </tbody>
-    </table>
+        </thead>
+        <tbody className="bg-stone-500 cursor-pointer">
+          {rows.map((row, rowIndex) => (
+            <tr
+              className="hover:bg-stone-400 transition-colors duration-200"
+              key={rowIndex}
+            >
+              {row.map((cell, cellIndex) => (
+                <td
+                  className={"px-6 py-4" + (cellIndex === 0 ? " text-2xl" : "")}
+                  key={cellIndex}
+                >
+                  {cell}
+                </td>
+              ))}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
   );
 }
-
 
 function App() {
   const [tableTitle, setTableTitle] = useState("");
@@ -134,14 +145,14 @@ Do not include the table name or description in the table itself.`;
     const header = currentTable.header;
     //const rows = table.rows;
     const csvData = [];
-  
+
     //const cells = row.querySelectorAll('td, th');
     const headerData = [];
     for (const cell of header) {
       headerData.push(cell);
     }
     csvData.push(headerData.join("\t"));
-  
+
     for (const row of rows) {
       //const cells = row.querySelectorAll('td, th');
       const rowData = [];
@@ -150,7 +161,7 @@ Do not include the table name or description in the table itself.`;
       }
       csvData.push(rowData.join("\t"));
     }
-  
+
     const csvString = csvData.join("\n");
     const blob = new Blob([csvString], { type: "text/csv" });
     const url = URL.createObjectURL(blob);
@@ -159,10 +170,10 @@ Do not include the table name or description in the table itself.`;
     a.download = "table.csv";
     a.click();
     URL.revokeObjectURL(url);
-  }
+  };
 
   return (
-    <div className="flex flex-col items-center text-center bg-stone-800">
+    <div className="flex flex-col w-full items-center text-center bg-stone-800">
       <header>
         <h1 className="text-4xl font-bold font-sans text-slate-200">
           TableGenAI
@@ -171,7 +182,7 @@ Do not include the table name or description in the table itself.`;
       <form
         method="post"
         onSubmit={generateTable}
-        className="gap-4 flex flex-col text-lg items-center my-4"
+        className="gap-4 w-full flex flex-col text-lg items-center my-4"
       >
         <label className="text-2xl text-slate-300">
           Title
@@ -190,9 +201,9 @@ Do not include the table name or description in the table itself.`;
           Description
           <input
             name="tableDesc"
-            className="w-auto block text-center my-2 border-2 
-            text-slate-700
-            bg-slate-400 border-slate-700 rounded-md"
+            className="my-2 block w-lg items-center rounded-md border-2 
+            border-slate-700 bg-slate-400 px-2 py-1
+            text-center text-slate-700"
             placeholder="Items that are legendary, rare, or unique."
             value={tableDesc}
             required={true}
@@ -236,7 +247,7 @@ Do not include the table name or description in the table itself.`;
         </button>
       </form>
       <hr />
-      <div className="bg-stone-700 size-auto m-8 p-4 shadow-lg rounded-sm">
+      <div className="bg-stone-700 w-4/5 size-auto m-8 p-4 shadow-lg rounded-sm">
         {!currentTable && (
           <div className="px-4 py-2">No current table, try generating one.</div>
         )}
@@ -246,7 +257,7 @@ Do not include the table name or description in the table itself.`;
       <hr />
       <div>
         <button
-         type="button"
+          type="button"
           className="bg-slate-700 rounded-md text-white py-2 px-4
               disabled:bg-slate-100 disabled:text-slate-200"
           onClick={exportTableToCSV}
