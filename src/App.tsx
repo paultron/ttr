@@ -56,7 +56,7 @@ function App() {
   const [tableDesc, setTableDesc] = useState("");
   const [tableRows, setTableRows] = useState(5);
   const [tableItemLength, setTableItemLength] = useState("Short to medium");
-  const [tableTemp, setTableTemp] = useState(0.75);
+  const [tableTemp, setTableTemp] = useState(1.0);
   //const [tableTopP, setTableTopP] = useState(0.95)
 
   const [isBusy, setIsBusy] = useState(false);
@@ -178,7 +178,7 @@ Do not include the table name or description in the table itself.`;
   return (
     <div className="flex flex-col w-full items-center text-center bg-stone-800">
       <header>
-        <h1 className="text-4xl font-bold font-sans text-slate-200">
+        <h1 className="my-4 bg-slate-700 rounded-md p-4 text-4xl font-bold font-sans text-slate-200">
           TableGenAI
         </h1>
       </header>
@@ -219,7 +219,7 @@ Do not include the table name or description in the table itself.`;
             Rows
             <input
               name="tableRows"
-              className="block w-24 text-slate-700 text-center my-2 border-2 bg-slate-400 border-slate-700 rounded-md"
+              className="block w-24 text-slate-700 text-center my-2 px-2 py-1 border-2 bg-slate-400 border-slate-700 rounded-md"
               placeholder="20"
               value={tableRows}
               type="number"
@@ -250,7 +250,7 @@ Do not include the table name or description in the table itself.`;
             Temperature
             <input
               name="tableTemp"
-              className="block w-24 text-slate-700 text-center my-2 border-2 bg-slate-400 border-slate-700 rounded-md"
+              className="block w-24 text-slate-700 text-center my-2 px-2 py-1 border-2 bg-slate-400 border-slate-700 rounded-md"
               placeholder="1.0"
               value={tableTemp}
               type="number"
