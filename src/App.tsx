@@ -1,11 +1,12 @@
 import { useState } from "react";
-import { GoogleGenAI, Type } from "@google/genai";
+import { GoogleGenAI, Type } from "@google/genai"; // Use newer API instead of deprecated "@google/generativeai"
 
 const API_KEY: string = import.meta.env.VITE_GEMINI_API_KEY;
 
 interface TableProps {
-  header: string[];
-  rows: string[][];
+  tableTitle: string;
+  tableDesc: string;
+  tableData: { header: string[]; rows: string[][] };
 }
 
 /**
@@ -14,26 +15,27 @@ interface TableProps {
  * @returns A React Component table
  */
 function TableDisplay({ table }: { table: TableProps }) {
-  const columns = table.header;
-  const rows = table.rows;
-
   return (
     <div className="overflow-x-auto">
+      <h2 className="text-2xl font-semibold mb-4 text-amber-300">
+        {table.tableTitle}
+      </h2>
+      <p className="text-lg mb-4 text-neutral-200">{table.tableDesc}</p>
       <table className="min-w-full divide-y border-collapse border-2 border-neutral-700">
         <thead className="bg-amber-900">
           <tr>
-            {columns.map((column, index) => (
+            {table.tableData.header.map((column, index) => (
               <th
                 className="px-6 py-3 text-center text-sm uppercase tracking-widest text-amber-100"
                 key={index}
               >
-                {column}
+                {index === 0 ? "Number" : column}
               </th>
             ))}
           </tr>
         </thead>
         <tbody className="bg-neutral-800 text-neutral-200 cursor-pointer">
-          {rows.map((row, rowIndex) => (
+          {table.tableData.rows.map((row, rowIndex) => (
             <tr
               className="hover:bg-amber-800 transition-colors duration-200"
               key={rowIndex}
@@ -63,7 +65,6 @@ function App() {
   const [tableRows, setTableRows] = useState(5);
   const [tableItemLength, setTableItemLength] = useState("Short to medium");
   const [tableTemp, setTableTemp] = useState(1.0);
-  //const [tableTopP, setTableTopP] = useState(0.95)
 
   const [isBusy, setIsBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -82,12 +83,6 @@ function App() {
     ev.preventDefault();
     setIsBusy(true);
     setError(null);
-    //const form = ev.target;
-    const formData = new FormData(ev.currentTarget);
-
-    const formJson = Object.fromEntries(formData.entries());
-
-    console.log(formJson);
 
     const AI = new GoogleGenAI({ apiKey: API_KEY });
     const modelConfig = {
@@ -116,16 +111,15 @@ function App() {
       },
     };
 
-    console.log("Generating table with:", { tableTitle, tableDesc, tableRows });
+    //console.log("Generating table with:", { tableTitle, tableDesc, tableRows });
 
     const prompt = `Generate a table with the name "${tableTitle}" and the description "${tableDesc}". 
 The table should have ${tableRows} rows, including a header row.
 The first column of the table should be numbered starting with 1. 
-The second column should be generated names of items. 
+The second column should be generated names. 
 The third column should be descriptions of ${tableItemLength} length. 
 Make the descriptions varied and not all starting with the same word, "A"/"The"/"This"/etc.
-Only include additional columns if requested in the description.
-Do not include the table name or description in the table itself.`;
+Only include additional columns if requested in the description.`;
 
     try {
       const response = await AI.models.generateContent({
@@ -134,42 +128,41 @@ Do not include the table name or description in the table itself.`;
         config: modelConfig,
       });
 
-      //const result = await model.generateContent(prompt);
-      //const response = result.response;
-      //console.log(response);
       const text: string = response.text ? response.text : "";
-      //console.log("raw", text);
 
       const tableArray = JSON.parse(text);
-      //console.log("Parsed table array:", tableArray);
-      setCurrentTable(tableArray);
+
+      const newTable: TableProps = {
+        tableTitle,
+        tableDesc,
+        tableData: tableArray,
+      };
+      // Manually set Number column name
+      newTable.tableData.header[0] = "Number";
+
+      setCurrentTable(newTable);
       setIsBusy(false);
-      //return tableArray;
     } catch (err) {
-      //console.error("Error parsing JSON:", e);
       setError(
         err instanceof Error
           ? err.message
           : "Error generating table! Check console for details"
       );
-      //return [["Error generating table! Check console for details"]];
     } finally {
       setIsBusy(false);
     }
   }
 
   const exportTableToCSV = (_ev: React.MouseEvent<HTMLButtonElement>) => {
-    //console.log("Exporting table to CSV");
     if (!currentTable) {
       console.error("No table to export");
       return;
     }
-    const rows = currentTable.rows;
-    const header = currentTable.header;
-    //const rows = table.rows;
+    const rows = currentTable.tableData.rows;
+    const header = currentTable.tableData.header;
+
     const csvData = [];
 
-    //const cells = row.querySelectorAll('td, th');
     const headerData = [];
     for (const cell of header) {
       headerData.push(cell);
@@ -177,7 +170,6 @@ Do not include the table name or description in the table itself.`;
     csvData.push(headerData.join("\t"));
 
     for (const row of rows) {
-      //const cells = row.querySelectorAll('td, th');
       const rowData = [];
       for (const cell of row) {
         rowData.push(cell);
@@ -190,7 +182,7 @@ Do not include the table name or description in the table itself.`;
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = "table.csv";
+    a.download = currentTable.tableTitle + ".csv";
     a.click();
     URL.revokeObjectURL(url);
   };
@@ -248,7 +240,8 @@ Do not include the table name or description in the table itself.`;
               <span className="mb-1 font-semibold text-amber-200">Rows:</span>
               <input
                 name="tableRows"
-                className="block w-24 h-12 text-center px-3 py-2 bg-neutral-700 border border-neutral-600 rounded-md focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
+                className="block w-24 h-12 text-center px-3 py-2 bg-neutral-700 border border-neutral-600 
+                rounded-md focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
                 placeholder="20"
                 value={tableRows}
                 type="number"
@@ -265,7 +258,8 @@ Do not include the table name or description in the table itself.`;
                 Item Desc. Length:
               </span>
               <select
-                className="block w-48 h-12 text-center px-3 py-2 bg-neutral-700 border border-neutral-600 rounded-md focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
+                className="block w-48 h-12 text-center px-3 py-2 bg-neutral-700 border border-neutral-600 
+                rounded-md focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
                 name="tableItemLength"
                 value={tableItemLength}
                 onChange={(e) => setTableItemLength(e.target.value)}
@@ -306,14 +300,16 @@ Do not include the table name or description in the table itself.`;
                 setError(null);
                 //setCurrentTable(null);
               }}
-              className="rounded-md bg-neutral-600 py-2 px-4 text-sm font-semibold text-orange-400 hover:bg-orange-700 hover:text-neutral-100 transition-colors duration-200"
+              className="rounded-md bg-neutral-600 py-2 px-4 text-sm font-semibold text-orange-400 
+              hover:bg-orange-700 hover:text-neutral-100 transition-colors duration-200"
             >
               Reset form
             </button>
             <button
               type="submit"
               disabled={!canGenerate}
-              className="rounded-md bg-amber-600 py-2 px-4 text-sm font-semibold text-neutral-900 hover:bg-amber-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200"
+              className="rounded-md bg-amber-600 py-2 px-4 text-sm font-semibold text-neutral-900 
+              hover:bg-amber-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200"
             >
               {isBusy ? "Generating..." : "Generate Table"}
             </button>
@@ -335,9 +331,6 @@ Do not include the table name or description in the table itself.`;
       {/* Generated Table Display */}
       {currentTable && (
         <div className="my-8 w-full">
-          <h2 className="text-2xl font-semibold mb-4 text-amber-300">
-            {tableTitle}
-          </h2>
           <TableDisplay table={currentTable} />
           <button
             type="button"
