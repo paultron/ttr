@@ -69,7 +69,7 @@ const TableForm: React.FC<TableFormProps> = ({
           placeholder="Common melee and ranged weapons found in a cyberpunk setting"
           value={tableDesc}
           required={true}
-          rows={2}
+          rows={3}
           aria-required="true"
           spellCheck={true}
           onChange={(e) => setTableDesc(e.target.value)}

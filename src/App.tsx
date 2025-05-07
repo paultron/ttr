@@ -1,26 +1,89 @@
 import React, { useState, useEffect, useContext } from "react";
 import { GoogleGenAI, Type } from "@google/genai";
-import TableForm from "./TableForm";
-import TableDisplay, { TableProps } from "./TableDisplay";
+import TableForm from "./components/TableForm";
+import TableDisplay, { TableProps } from "./components/TableDisplay";
 import LoginButton from "./components/LoginButton";
 import LoginModal from "./components/LoginModal";
 import { firebaseAuth as auth } from "./firebase/BaseConfig"; // Auth instance
 import { User, onAuthStateChanged, signOut } from "firebase/auth";
-import { AuthContext } from "./store/AuthContext"; // Import AuthContext
+import { AuthContext } from "./store/AuthContext";
 import {
   saveTableToFirestore,
   getLastFiveUserTables,
-} from "./firebase/FirestoreService"; // Firestore functions
+} from "./firebase/FirestoreService";
 import {
   StoredTable,
   TableGenerationParams,
   AppTableData,
-} from "./interfaces/interfaces"; // Interfaces
+} from "./interfaces/interfaces";
 
 const API_KEY: string = import.meta.env.VITE_GEMINI_API_KEY;
 
+const examplePrompts = [
+  {
+    title: "Mystic Forest Encounters",
+    description: "A list of strange and wondrous encounters one might have in an ancient, whispering wood. Focus on a mix of benign, curious, and subtly unnerving events.",
+  },
+  {
+    title: "Cyberpunk Alleyway Finds",
+    description: "Generate a table of items or data chips a street samurai might find stashed in a grimy back alley of Neo-Kyoto. Descriptions should be gritty and tech-focused. Include an extra column for the item's condition (e.g., pristine, used, damaged).",
+  },
+  {
+    title: "Ingredients for a Potion of Shifting Hues",
+    description: "List peculiar and magical ingredients required to brew a potion that causes a drinker's skin and hair to change colors with their mood. Include an extra column for where each ingredient might be found (e.g., Sunken Grotto, Dragon's Peak).",
+  },
+  {
+    title: "Rumors in a Spaceport Cantina",
+    description: "A collection of overheard rumors and plot hooks a group of adventurers might hear in a bustling, multi-species spaceport bar. Make them varied in scope and potential danger. Include an extra column for the source of the rumor (e.g., Drunken Pilot, Shady Infochant).",
+  },
+  {
+    title: "Haunted Mansion's Secret Rooms",
+    description: "Describe five secret rooms discovered in a sprawling, dilapidated Victorian mansion, including what unique item or clue is found in each.",
+  },
+  {
+    title: "Desert Nomad's Prized Trinkets",
+    description: "Generate a list of small, meaningful trinkets carried by a wise old desert nomad. Each item should hint at a past adventure or a piece of desert wisdom.",
+  },
+  {
+    title: "Steampunk Inventor's Failed Gadgets",
+    description: "A table of amusingly flawed or comically dangerous gadgets found in a scatter-brained steampunk inventor's workshop. Include an extra column for the primary material used (e.g., brass, copper, clockwork).",
+  },
+  {
+    title: "Urban Fantasy Creature Sightings",
+    description: "List recent, credible (or not-so-credible) sightings of magical creatures in a modern city setting. Descriptions should blend the mundane with the magical.",
+  },
+  {
+    title: "Lost Pirate Treasure Clues",
+    description: "Generate cryptic clues that, when pieced together, lead to Captain Blackheart's legendary buried treasure. Each clue should be a short riddle or a mysterious map fragment description.",
+  },
+  {
+    title: "Post-Apocalyptic Barter Items",
+    description: "A list of valuable or surprisingly useful items for barter in a post-apocalyptic wasteland settlement. Consider both practical needs and small luxuries. Include an extra column for the item's perceived barter value (e.g., 3 water rations, 10 bullets).",
+  },
+  {
+    title: "Alien Flora of Planet Xylar",
+    description: "Describe various species of bizarre and fascinating plants found on the newly discovered Planet Xylar. Include details about their appearance, properties, and potential uses or dangers. Include an extra column for the plant's edibility (e.g., edible, toxic, unknown).",
+  },
+  {
+    title: "Notable NPCs in the City of Veridia",
+    description: "Create a list of interesting non-player characters (NPCs) a party might encounter in the fantasy city of Veridia. Provide a brief personality sketch and a potential quest hook for each. Include an extra column for their primary motivation (e.g., wealth, knowledge, revenge).",
+  },
+  {
+    title: "Philosophical Concepts from Ancient Zorgon",
+    description: "Generate a table of intriguing and mind-bending philosophical concepts or paradoxes originating from the lost civilization of Zorgon. Provide a brief explanation of each concept.",
+  },
+  {
+    title: "Legendary Lost Libraries",
+    description: "A list of fabled libraries from myth and history, rumored to hold immense knowledge or dangerous secrets. Describe their supposed contents and the challenges in finding them. Include an extra column for the library's last known location or status.",
+  },
+  {
+    title: "Guilds & Factions of the Underdark",
+    description: "Detail various guilds, factions, or societies operating in the dangerous subterranean realm of the Underdark. Describe their goals, typical members, and relations with others. Include an extra column for their alignment (e.g., Lawful Evil, Chaotic Neutral).",
+  }
+];
+
 function App() {
-  // Form state
+  // Form state - initialized by useEffect later
   const [tableTitle, setTableTitle] = useState("");
   const [tableDesc, setTableDesc] = useState("");
   const [tableRows, setTableRows] = useState(5);
@@ -28,7 +91,7 @@ function App() {
   const [tableTemp, setTableTemp] = useState(1.0);
 
   // App status state
-  const [isBusy, setIsBusy] = useState(false); // For Gemini API call
+  const [isBusy, setIsBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   // Current generated table state
@@ -39,16 +102,21 @@ function App() {
   const [showForm, setShowForm] = useState(true);
   const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
 
-  // Auth state from Context
-  const { user: currentUser, isAuthLoading } = useContext(AuthContext); // Use user from context
+  const { user: currentUser, isAuthLoading } = useContext(AuthContext);
 
-  // Firestore related state
   const [savedTables, setSavedTables] = useState<StoredTable[]>([]);
   const [isSavingTable, setIsSavingTable] = useState(false);
   const [saveTableError, setSaveTableError] = useState<string | null>(null);
   const [fetchTablesError, setFetchTablesError] = useState<string | null>(null);
 
-  // Effect to fetch user's last 5 tables on login
+  // Effect to set initial random prompt on page load
+  useEffect(() => {
+    const randomIndex = Math.floor(Math.random() * examplePrompts.length);
+    const randomPrompt = examplePrompts[randomIndex];
+    setTableTitle(randomPrompt.title);
+    setTableDesc(randomPrompt.description);
+  }, []); // Empty dependency array ensures this runs only once on mount
+
   useEffect(() => {
     if (currentUser && !isAuthLoading) {
       setFetchTablesError(null);
@@ -61,16 +129,15 @@ function App() {
           );
         });
     } else {
-      setSavedTables([]); // Clear saved tables if user logs out or no user
+      setSavedTables([]);
     }
   }, [currentUser, isAuthLoading]);
 
   const handleLogout = async () => {
     try {
       await signOut(auth);
-      setCurrentTable(null); // Clear current table on logout
+      setCurrentTable(null);
       setCurrentTableParams(null);
-      // AuthContext will handle user state update
     } catch (err) {
       console.error("Error signing out: ", err);
     }
@@ -83,15 +150,15 @@ function App() {
     ev.preventDefault();
     setIsBusy(true);
     setError(null);
-    setCurrentTable(null); // Clear previous table before generating new one
+    setCurrentTable(null);
     setCurrentTableParams(null);
 
     const params: TableGenerationParams = {
-        tableTitle,
-        tableDesc,
-        tableRows,
-        tableItemLength,
-        tableTemp,
+      tableTitle,
+      tableDesc,
+      tableRows,
+      tableItemLength,
+      tableTemp,
     };
 
     const AI = new GoogleGenAI({ apiKey: API_KEY });
@@ -131,11 +198,11 @@ Only include additional columns if requested in the description.`;
         tableData: tableArray,
       };
       if (newTable.tableData.header && newTable.tableData.header.length > 0) {
-        newTable.tableData.header[0] = "#"; // Standardize first header column
+        newTable.tableData.header[0] = "#";
       }
 
       setCurrentTable(newTable);
-      setCurrentTableParams(params); // Save params for potential save operation
+      setCurrentTableParams(params);
       setShowForm(false);
     } catch (err) {
       console.error("Error generating table:", err);
@@ -158,10 +225,8 @@ Only include additional columns if requested in the description.`;
     setSaveTableError(null);
     try {
       await saveTableToFirestore(currentUser.uid, currentTableParams, currentTable.tableData);
-      // Refresh saved tables list to show the newly saved one
       const updatedTables = await getLastFiveUserTables(currentUser.uid);
       setSavedTables(updatedTables);
-      // Optionally, provide user feedback e.g., a success toast/message
       alert("Table saved successfully!");
     } catch (err) {
       console.error("Error saving table:", err);
@@ -179,24 +244,23 @@ Only include additional columns if requested in the description.`;
     setTableTemp(savedTable.tableTemp);
 
     setCurrentTable({
-        tableTitle: savedTable.tableTitle,
-        tableDesc: savedTable.tableDesc,
-        tableData: savedTable.tableData,
+      tableTitle: savedTable.tableTitle,
+      tableDesc: savedTable.tableDesc,
+      tableData: savedTable.tableData as unknown as AppTableData,
     });
     setCurrentTableParams({
-        tableTitle: savedTable.tableTitle,
-        tableDesc: savedTable.tableDesc,
-        tableRows: savedTable.tableRows,
-        tableItemLength: savedTable.tableItemLength,
-        tableTemp: savedTable.tableTemp,
+      tableTitle: savedTable.tableTitle,
+      tableDesc: savedTable.tableDesc,
+      tableRows: savedTable.tableRows,
+      tableItemLength: savedTable.tableItemLength,
+      tableTemp: savedTable.tableTemp,
     });
-    setShowForm(false); // Show the table, hide the form initially
-    setError(null); // Clear any previous errors
+    setShowForm(false);
+    setError(null);
   };
 
   const exportTableToCSV = (_ev: React.MouseEvent<HTMLButtonElement>) => {
     if (!currentTable) return;
-    // ... (rest of exportTableToCSV is unchanged)
     const rows = currentTable.tableData.rows;
     const header = currentTable.tableData.header;
     const csvData = [];
@@ -204,13 +268,13 @@ Only include additional columns if requested in the description.`;
     for (const cell of header) {
       headerData.push(cell);
     }
-    csvData.push(headerData.join("\t"));
+    csvData.push(headerData.join("\n"));
     for (const row of rows) {
       const rowData = [];
       for (const cell of row) {
         rowData.push(cell);
       }
-      csvData.push(rowData.join("\t"));
+      csvData.push(rowData.join("\n"));
     }
     const csvString = csvData.join("\n");
     const blob = new Blob([csvString], { type: "text/csv" });
@@ -223,8 +287,10 @@ Only include additional columns if requested in the description.`;
   };
 
   const handleResetForm = () => {
-    setTableTitle("");
-    setTableDesc("");
+    const randomIndex = Math.floor(Math.random() * examplePrompts.length);
+    const randomPrompt = examplePrompts[randomIndex];
+    setTableTitle(randomPrompt.title);
+    setTableDesc(randomPrompt.description);
     setTableRows(5);
     setTableItemLength("Short to medium");
     setTableTemp(1.0);
@@ -265,6 +331,7 @@ Only include additional columns if requested in the description.`;
       </header>
 
       <main className="flex flex-col items-center w-full max-w-4xl px-4 py-8">
+
         {currentTable && showForm && (
           <button
             onClick={() => setShowForm(false)}
@@ -287,7 +354,7 @@ Only include additional columns if requested in the description.`;
             tableTemp={tableTemp}
             setTableTemp={setTableTemp}
             generateTable={generateTable}
-            handleResetForm={handleResetForm}
+            handleResetForm={handleResetForm} 
             canGenerate={canGenerate}
             isBusy={isBusy}
           />
@@ -295,9 +362,6 @@ Only include additional columns if requested in the description.`;
           <button
             onClick={() => {
               setShowForm(true);
-              // Optionally, if you want to clear the current table when showing the form to edit:
-              // setCurrentTable(null);
-              // setCurrentTableParams(null);
             }}
             className="my-4 rounded-md bg-neutral-700 py-2 px-4 text-sm font-semibold text-amber-200 hover:bg-neutral-600 transition-colors duration-200"
           >
@@ -344,7 +408,6 @@ Only include additional columns if requested in the description.`;
         </div>
       )}
 
-      {/* Display Last 5 Saved Tables for Logged-in User */}
       {currentUser && savedTables.length > 0 && (
         <section className="my-8 w-full max-w-4xl">
           <h2 className="text-2xl font-semibold text-amber-200 mb-4">Your Last 5 Saved Tables</h2>
@@ -356,7 +419,7 @@ Only include additional columns if requested in the description.`;
                   <h3 className="text-lg font-medium text-amber-100">{table.tableTitle}</h3>
                   <p className="text-sm text-neutral-400 truncate max-w-md">{table.tableDesc}</p>
                   <p className="text-xs text-neutral-500 mt-1">
-                    Saved on: {new Date(table.createdAt.toDate()).toLocaleDateString()} -
+                    Saved on: {table.createdAt?.toDate ? new Date(table.createdAt.toDate()).toLocaleDateString() : 'N/A'} -
                     {table.tableRows} rows, Temp: {table.tableTemp}, Length: {table.tableItemLength}
                   </p>
                 </div>
@@ -371,7 +434,7 @@ Only include additional columns if requested in the description.`;
           </ul>
         </section>
       )}
-       {currentUser && savedTables.length === 0 && !fetchTablesError && (
+      {currentUser && savedTables.length === 0 && !fetchTablesError && (
         <section className="my-8 w-full max-w-4xl">
           <p className="text-neutral-400">You have no saved tables yet. Generate and save a table to see it here!</p>
         </section>
