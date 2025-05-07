@@ -92,11 +92,11 @@ To run TableGenAI locally, follow these steps:
 
 ## Future Enhancements (Ideas)
 
-*   User authentication to save tables.
+*   User authentication(done) to save tables(next).
 *   More advanced table customization options (e.g., specific column types).
-*   Direct integration with TTRPG platforms.
-*   Ability to re-roll individual rows in a table.
-*   Ability to generate images from individual rows in a table.
+*   Direct integration with TTRPG platforms.(far future)
+*   Ability to re-roll individual rows in a table.(next)
+*   Ability to generate images from individual rows in a table.(soon)
 
 
 ## Contributing

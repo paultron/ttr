@@ -1,13 +1,14 @@
-import { User } from "firebase/auth"; //type User import
+import { User } from "firebase/auth";
+import { Timestamp } from "firebase/firestore";
 
-//IAuth context
+// IAuth context
 export interface IAuth {
-  user: User | null; //type User comes from firebase
+  user: User | null;
   loading: boolean;
-  isAuthLoading: boolean; // Added for initial auth state check
-  signIn: (creds: LoginFormValues) => Promise<void>; // Updated to return Promise for async handling
-  signUp: (creds: UserFormValues) => Promise<void>; // Updated to return Promise for async handling
-  signOut: () => Promise<void>; // Updated to return Promise for async handling
+  isAuthLoading: boolean;
+  signIn: (creds: LoginFormValues) => Promise<void>;
+  signUp: (creds: UserFormValues) => Promise<void>;
+  signOut: () => Promise<void>;
 }
 
 export interface LoginFormValues {
@@ -15,11 +16,42 @@ export interface LoginFormValues {
   password: string;
 }
 
-// UserFormValues from your LoginModal included a displayName, 
-// but your original interface did not. I'm keeping it simple without displayName for now.
-// If you need it for sign-up, we can add it back to the form and here.
 export interface UserFormValues {
   email: string;
   password: string;
-  // displayName?: string; // Optional: uncomment if you plan to use it
+  // displayName?: string;
+}
+
+// Interface for the structure of table data as used by the app (Gemini response, TableDisplay)
+export interface AppTableData {
+  header: string[];
+  rows: string[][]; // Array of arrays of strings
+}
+
+// Interface for the structure of table row data compatible with Firestore
+export interface FirestoreRowData {
+  cells: string[];
+}
+
+// Interface for the structure of table data compatible with Firestore
+export interface FirestoreCompatibleTableData {
+  header: string[];
+  rows: FirestoreRowData[]; // Array of objects, each representing a row
+}
+
+// Interface for the table generation parameters
+export interface TableGenerationParams {
+  tableTitle: string;
+  tableDesc: string;
+  tableRows: number;
+  tableItemLength: string;
+  tableTemp: number;
+}
+
+// Interface for the table document stored in Firestore
+export interface StoredTable extends TableGenerationParams {
+  id?: string; // Firestore document ID
+  userId: string;
+  tableData: FirestoreCompatibleTableData; // Use Firestore-compatible structure
+  createdAt: Timestamp; // Firestore timestamp for ordering
 }
