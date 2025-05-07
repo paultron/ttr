@@ -11,8 +11,6 @@ TableGenAI is a web-based application designed for TTRPG (Tabletop Role-Playing 
     *   **Number of Rows:** Specify how many items the table should contain.
     *   **Item Description Length:** Control the verbosity of the generated descriptions (Short, Medium, Long, etc.).
     *   **Temperature (Creativity):** Adjust the randomness and creativity of the Gemini API's output. Higher values lead to more unexpected results, while lower values produce more predictable content.
-*   **Dynamic Form:** The input form can be hidden after table generation to provide a cleaner view of the table, and easily shown again for new generations or modifications.
-*   **Alternating Row Colors:** For improved readability of the generated table.
 *   **CSV Export:** Download your generated tables as CSV files for easy use in other applications or for offline access.
 *   **Responsive Design:** Built with Tailwind CSS for a consistent experience across different devices.
 
@@ -98,6 +96,8 @@ To run TableGenAI locally, follow these steps:
 *   More advanced table customization options (e.g., specific column types).
 *   Direct integration with TTRPG platforms.
 *   Ability to re-roll individual rows in a table.
+*   Ability to generate images from individual rows in a table.
+
 
 ## Contributing
 

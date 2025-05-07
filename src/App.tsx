@@ -1,12 +1,13 @@
-import { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { GoogleGenAI, Type } from "@google/genai";
 import TableForm from "./TableForm";
-import TableDisplay, { TableProps } from "./TableDisplay"; // Import TableDisplay and TableProps
+import TableDisplay, { TableProps } from "./TableDisplay";
+import LoginButton from "./components/LoginButton"; // Added
+import LoginModal from "./components/LoginModal"; // Added
+import { firebaseAuth as auth } from "./firebase/BaseConfig"; // Added for auth state
+import { User, onAuthStateChanged, signOut } from "firebase/auth"; // Added for auth state and signOut
 
 const API_KEY: string = import.meta.env.VITE_GEMINI_API_KEY;
-
-// TableProps is now imported from TableDisplay.tsx
-// The TableDisplay component is also imported
 
 function App() {
   const [tableTitle, setTableTitle] = useState("");
@@ -20,6 +21,27 @@ function App() {
 
   const [currentTable, setCurrentTable] = useState<TableProps | null>(null);
   const [showForm, setShowForm] = useState(true);
+
+  // Added for Login Modal and User State
+  const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
+
+  // Listen to auth state changes
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      setCurrentUser(user);
+    });
+    return () => unsubscribe(); // Cleanup subscription on unmount
+  }, []);
+
+  const handleLogout = async () => {
+    try {
+      await signOut(auth); // Using signOut from firebase/auth directly
+    } catch (err) {
+      console.error("Error signing out: ", err);
+      // Optionally, set an error message to display to the user
+    }
+  };
 
   const canGenerate =
     tableTitle.trim() != "" && tableDesc.trim() != "" && !isBusy;
@@ -135,10 +157,29 @@ Only include additional columns if requested in the description.`;
 
   return (
     <div className="flex flex-col w-full min-h-screen items-center text-center bg-neutral-900 text-neutral-200">
-      <header className="w-full bg-neutral-800 shadow-md py-4">
-        <h1 className="text-4xl font-bold font-sans text-amber-300" style={{ textShadow: '2px 2px 3px #4a3b0c' }}>
+      <header className="w-full bg-neutral-800 shadow-md py-4 flex justify-between items-center px-4">
+        <h1
+          className="text-4xl font-bold font-sans text-amber-300"
+          style={{ textShadow: "2px 2px 3px #4a3b0c" }}
+        >
           TableGenAI
         </h1>
+        {/* Login/Logout Button Area */}
+        <div className="flex items-center">
+          {currentUser ? (
+            <div className="flex items-center">
+              <span className="text-white mr-4">{currentUser.email}</span>
+              <button
+                onClick={handleLogout}
+                className="bg-red-500 hover:bg-red-700 text-white font-bold py-2 px-4 rounded"
+              >
+                Logout
+              </button>
+            </div>
+          ) : (
+            <LoginButton onClick={() => setIsLoginModalOpen(true)} />
+          )}
+        </div>
       </header>
       <main className="flex flex-col items-center w-full max-w-4xl px-4 py-8">
         {currentTable && showForm && (
@@ -173,24 +214,25 @@ Only include additional columns if requested in the description.`;
             className="my-4 rounded-md bg-neutral-700 py-2 px-4 text-sm font-semibold text-amber-200
             hover:bg-neutral-600 transition-colors duration-200"
           >
-            {currentTable ? "Edit & Generate New Table" : "Show Form to Generate Table"}
+            {currentTable
+              ? "Edit & Generate New Table"
+              : "Show Form to Generate Table"}
           </button>
         )}
       </main>
 
       {!currentTable && !isBusy && !showForm && (
-         <div className="px-4 py-2">Click "Show Form to Generate Table" above to start.</div>
+        <div className="px-4 py-2">
+          Click "Show Form to Generate Table" above to start.
+        </div>
       )}
-      
-      {/* Loading Indicator */}
+
       {isBusy && (
         <p className="my-4 text-lg text-red-500">Generating table...</p>
       )}
 
-      {/* Error Display */}
       {error && <p className="my-4 text-lg text-red-500">Error: {error}</p>}
 
-      {/* Generated Table Display */}
       {currentTable && (
         <div className="my-8 w-full max-w-4xl">
           <TableDisplay table={currentTable} />
@@ -206,6 +248,12 @@ Only include additional columns if requested in the description.`;
           </div>
         </div>
       )}
+
+      {/* Login Modal Component */}
+      <LoginModal
+        isOpen={isLoginModalOpen}
+        onClose={() => setIsLoginModalOpen(false)}
+      />
     </div>
   );
 }
