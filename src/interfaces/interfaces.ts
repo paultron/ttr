@@ -50,7 +50,7 @@ export interface TableGenerationParams {
 
 // Interface for the table document stored in Firestore
 export interface StoredTable extends TableGenerationParams {
-  id?: string; // Firestore document ID
+  id: string; // Firestore document ID
   userId: string;
   tableData: FirestoreCompatibleTableData; // Use Firestore-compatible structure
   createdAt: Timestamp; // Firestore timestamp for ordering

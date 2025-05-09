@@ -7,14 +7,15 @@ import {
   limit,
   getDocs,
   serverTimestamp,
-  Timestamp
+  Timestamp,
+  doc, // Added for deleting a document
+  deleteDoc // Added for deleting a document
 } from 'firebase/firestore';
 import {
   StoredTable,
   TableGenerationParams,
-  AppTableData, // This is what App.tsx uses (string[][])
-  FirestoreCompatibleTableData, // This is what Firestore needs (Array<{cells: string[]}>)
-  FirestoreRowData
+  AppTableData, 
+  FirestoreCompatibleTableData,
 } from '../interfaces/interfaces';
 
 const USER_TABLES_COLLECTION = 'userTables';
@@ -40,23 +41,21 @@ const convertFromFirestoreFormat = (firestoreData: FirestoreCompatibleTableData)
 export const saveTableToFirestore = async (
   userId: string,
   params: TableGenerationParams,
-  tableData: AppTableData // App.tsx sends data in this format
+  tableData: AppTableData 
 ): Promise<string> => {
   if (!userId) throw new Error('User ID is required to save a table.');
 
   try {
     const userTableCollectionRef = collection(firestore, USER_TABLES_COLLECTION, userId, TABLES_SUBCOLLECTION);
     
-    // Convert to Firestore-compatible format before saving
     const firestoreReadyTableData = convertToFirestoreFormat(tableData);
 
     const newTableDoc = {
       userId,
       ...params,
-      tableData: firestoreReadyTableData, // Save the converted data
+      tableData: firestoreReadyTableData,
       createdAt: serverTimestamp(),
     };
-    // The type for newTableDoc for addDoc doesn't need StoredTable['id'] or precise createdAt type here
     const docRef = await addDoc(userTableCollectionRef, newTableDoc as Omit<StoredTable, 'id' | 'createdAt'> & { createdAt: any });
     return docRef.id;
   } catch (error) {
@@ -80,21 +79,29 @@ export const getLastFiveUserTables = async (userId: string): Promise<StoredTable
     const querySnapshot = await getDocs(q);
     const tables: StoredTable[] = [];
     querySnapshot.forEach((doc) => {
-      // The data from Firestore needs to be cast to the StoredTable structure,
-      // but its tableData is still FirestoreCompatibleTableData
       const firestoreDocData = { id: doc.id, ...doc.data() } as StoredTable;
-      
-      // Convert tableData back to AppTableData format for use in the app
-      // This step means the StoredTable type in the app will effectively hold AppTableData
-      // We will adjust the loadSavedTable in App.tsx to expect AppTableData again.
       tables.push({
         ...firestoreDocData,
         tableData: convertFromFirestoreFormat(firestoreDocData.tableData) 
-      } as unknown as StoredTable); // We cast here, knowing we adjusted the shape
+      } as unknown as StoredTable);
     });
     return tables;
   } catch (error) {
     console.error('Error fetching user tables from Firestore:', error);
+    throw error;
+  }
+};
+
+// Delete a specific table for a given user
+export const deleteTableFromFirestore = async (userId: string, tableId: string): Promise<void> => {
+  if (!userId) throw new Error('User ID is required to delete a table.');
+  if (!tableId) throw new Error('Table ID is required to delete a table.');
+
+  try {
+    const tableDocRef = doc(firestore, USER_TABLES_COLLECTION, userId, TABLES_SUBCOLLECTION, tableId);
+    await deleteDoc(tableDocRef);
+  } catch (error) {
+    console.error('Error deleting table from Firestore:', error);
     throw error;
   }
 };

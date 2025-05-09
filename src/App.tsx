@@ -10,6 +10,7 @@ import { AuthContext } from "./store/AuthContext";
 import {
   saveTableToFirestore,
   getLastFiveUserTables,
+  deleteTableFromFirestore,
 } from "./firebase/FirestoreService";
 import {
   StoredTable,
@@ -83,7 +84,7 @@ const examplePrompts = [
 ];
 
 function App() {
-  // Form state - initialized by useEffect later
+  // Form state
   const [tableTitle, setTableTitle] = useState("");
   const [tableDesc, setTableDesc] = useState("");
   const [tableRows, setTableRows] = useState(5);
@@ -104,18 +105,20 @@ function App() {
 
   const { user: currentUser, isAuthLoading } = useContext(AuthContext);
 
+  // Saved tables state
   const [savedTables, setSavedTables] = useState<StoredTable[]>([]);
   const [isSavingTable, setIsSavingTable] = useState(false);
   const [saveTableError, setSaveTableError] = useState<string | null>(null);
   const [fetchTablesError, setFetchTablesError] = useState<string | null>(null);
+  const [isDeletingTable, setIsDeletingTable] = useState(false); // New state for delete operation
+  const [deleteTableError, setDeleteTableError] = useState<string | null>(null); // New state for delete error
 
-  // Effect to set initial random prompt on page load
   useEffect(() => {
     const randomIndex = Math.floor(Math.random() * examplePrompts.length);
     const randomPrompt = examplePrompts[randomIndex];
     setTableTitle(randomPrompt.title);
     setTableDesc(randomPrompt.description);
-  }, []); // Empty dependency array ensures this runs only once on mount
+  }, []);
 
   useEffect(() => {
     if (currentUser && !isAuthLoading) {
@@ -138,6 +141,7 @@ function App() {
       await signOut(auth);
       setCurrentTable(null);
       setCurrentTableParams(null);
+      // Form fields are not reset here, user might want to generate as anonymous
     } catch (err) {
       console.error("Error signing out: ", err);
     }
@@ -150,8 +154,9 @@ function App() {
     ev.preventDefault();
     setIsBusy(true);
     setError(null);
-    setCurrentTable(null);
+    setCurrentTable(null); // Clear previous table before generating a new one
     setCurrentTableParams(null);
+    setSaveTableError(null); // Clear save error if any
 
     const params: TableGenerationParams = {
       tableTitle,
@@ -221,13 +226,19 @@ Only include additional columns if requested in the description.`;
       setSaveTableError("Cannot save table. Ensure you are logged in and a table is generated.");
       return;
     }
+
+    if (savedTables.length >= 5) {
+      setSaveTableError("You have reached the maximum of 5 saved tables. Please delete an existing table to save a new one.");
+      return;
+    }
+
     setIsSavingTable(true);
     setSaveTableError(null);
     try {
       await saveTableToFirestore(currentUser.uid, currentTableParams, currentTable.tableData);
       const updatedTables = await getLastFiveUserTables(currentUser.uid);
       setSavedTables(updatedTables);
-      alert("Table saved successfully!");
+      alert("Table saved successfully!"); // Consider replacing alert with a less obtrusive notification
     } catch (err) {
       console.error("Error saving table:", err);
       setSaveTableError(err instanceof Error ? err.message : "Could not save table.");
@@ -235,6 +246,36 @@ Only include additional columns if requested in the description.`;
       setIsSavingTable(false);
     }
   };
+
+  const handleDeleteTable = async (tableId: string) => {
+    if (!currentUser) {
+      setDeleteTableError("You must be logged in to delete tables.");
+      return;
+    }
+    if (!window.confirm("Are you sure you want to delete this table permanently?")) {
+      return;
+    }
+
+    setIsDeletingTable(true);
+    setDeleteTableError(null);
+    try {
+      await deleteTableFromFirestore(currentUser.uid, tableId);
+      const updatedTables = await getLastFiveUserTables(currentUser.uid);
+      setSavedTables(updatedTables);
+      // Optionally, clear saveTableError if it was related to table limit
+      if(saveTableError && saveTableError.includes("maximum of 5")){
+        setSaveTableError(null);
+      }
+      // Consider replacing alert with a less obtrusive notification
+      // alert("Table deleted successfully!"); 
+    } catch (err) {
+      console.error("Error deleting table:", err);
+      setDeleteTableError(err instanceof Error ? err.message : "Could not delete table.");
+    } finally {
+      setIsDeletingTable(false);
+    }
+  };
+
 
   const loadSavedTable = (savedTable: StoredTable) => {
     setTableTitle(savedTable.tableTitle);
@@ -246,7 +287,7 @@ Only include additional columns if requested in the description.`;
     setCurrentTable({
       tableTitle: savedTable.tableTitle,
       tableDesc: savedTable.tableDesc,
-      tableData: savedTable.tableData as unknown as AppTableData,
+      tableData: savedTable.tableData as unknown as AppTableData, // Type assertion needed due to Firestore conversion
     });
     setCurrentTableParams({
       tableTitle: savedTable.tableTitle,
@@ -257,6 +298,7 @@ Only include additional columns if requested in the description.`;
     });
     setShowForm(false);
     setError(null);
+    setSaveTableError(null); // Clear save error when a new table is loaded
   };
 
   const exportTableToCSV = (_ev: React.MouseEvent<HTMLButtonElement>) => {
@@ -268,20 +310,25 @@ Only include additional columns if requested in the description.`;
     for (const cell of header) {
       headerData.push(cell);
     }
-    csvData.push(headerData.join("\n"));
+    csvData.push(headerData.join("\t")); // Using tab as a separator for better Excel compatibility
     for (const row of rows) {
       const rowData = [];
       for (const cell of row) {
-        rowData.push(cell);
+        // Basic CSV sanitization: escape double quotes and wrap in double quotes if it contains comma, newline, or double quote
+        let sanitizedCell = cell.replace(/"/g, '""');
+        if (sanitizedCell.includes('\t') || sanitizedCell.includes('\n') || sanitizedCell.includes('"')) {
+          sanitizedCell = `"${sanitizedCell}"`;
+        }
+        rowData.push(sanitizedCell);
       }
-      csvData.push(rowData.join("\n"));
+      csvData.push(rowData.join("\t"));
     }
     const csvString = csvData.join("\n");
-    const blob = new Blob([csvString], { type: "text/csv" });
+    const blob = new Blob([csvString], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = currentTable.tableTitle + ".csv";
+    a.download = currentTable.tableTitle.replace(/[^a-z0-9]/gi, '_') + ".csv"; // Sanitize filename
     a.click();
     URL.revokeObjectURL(url);
   };
@@ -297,6 +344,8 @@ Only include additional columns if requested in the description.`;
     setCurrentTable(null);
     setCurrentTableParams(null);
     setError(null);
+    setSaveTableError(null);
+    setDeleteTableError(null);
     setShowForm(true);
   };
 
@@ -311,7 +360,7 @@ Only include additional columns if requested in the description.`;
           className="text-4xl font-bold font-sans text-amber-300"
           style={{ textShadow: "2px 2px 3px #4a3b0c" }}
         >
-          TableGenAI
+          Castor's Tables
         </h1>
         <div className="flex items-center">
           {currentUser ? (
@@ -319,7 +368,7 @@ Only include additional columns if requested in the description.`;
               <span className="text-white mr-4">{currentUser.email}</span>
               <button
                 onClick={handleLogout}
-                className="bg-red-500 hover:bg-red-700 text-white font-bold py-2 px-4 rounded"
+                className="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded transition-colors duration-150"
               >
                 Logout
               </button>
@@ -379,7 +428,7 @@ Only include additional columns if requested in the description.`;
       {isBusy && (
         <p className="my-4 text-lg text-red-500">Generating table...</p>
       )}
-      {error && <p className="my-4 text-lg text-red-500">Error: {error}</p>}
+      {error && <p className="my-4 text-lg text-red-500">Generation Error: {error}</p>}
 
       {currentTable && (
         <div className="my-8 w-full max-w-4xl">
@@ -398,7 +447,7 @@ Only include additional columns if requested in the description.`;
                 type="button"
                 className="rounded-md bg-green-600 py-2 px-4 text-sm font-semibold text-white hover:bg-green-500 disabled:opacity-50 transition-colors duration-200"
                 onClick={handleSaveTable}
-                disabled={isSavingTable || !currentTable}
+                disabled={isSavingTable || !currentTable || savedTables.length >= 5}
               >
                 {isSavingTable ? "Saving..." : "Save Table"}
               </button>
@@ -410,25 +459,36 @@ Only include additional columns if requested in the description.`;
 
       {currentUser && savedTables.length > 0 && (
         <section className="my-8 w-full max-w-4xl">
-          <h2 className="text-2xl font-semibold text-amber-200 mb-4">Your Last 5 Saved Tables</h2>
-          {fetchTablesError && <p className="text-red-400 mb-2">{fetchTablesError}</p>}
+          <h2 className="text-2xl font-semibold text-amber-200 mb-4 text-left">Your Last {savedTables.length} Saved Tables (Max 5)</h2>
+          {fetchTablesError && <p className="text-red-400 mb-2 text-left">Fetch Error: {fetchTablesError}</p>}
+          {deleteTableError && <p className="text-red-400 mb-2 text-left">Delete Error: {deleteTableError}</p>}
           <ul className="space-y-3">
             {savedTables.map((table) => (
-              <li key={table.id} className="p-4 bg-neutral-800 rounded-md shadow flex justify-between items-center">
-                <div>
+              <li key={table.id} className="p-4 bg-neutral-800 rounded-md shadow flex flex-col sm:flex-row justify-between items-start sm:items-center">
+                <div className="mb-3 sm:mb-0 text-left"> {/* Ensure this div's text is left-aligned */}
                   <h3 className="text-lg font-medium text-amber-100">{table.tableTitle}</h3>
-                  <p className="text-sm text-neutral-400 truncate max-w-md">{table.tableDesc}</p>
+                  <p className="text-sm text-neutral-400 truncate max-w-md sm:max-w-xs md:max-w-md lg:max-w-lg">{table.tableDesc}</p>
                   <p className="text-xs text-neutral-500 mt-1">
                     Saved on: {table.createdAt?.toDate ? new Date(table.createdAt.toDate()).toLocaleDateString() : 'N/A'} -
                     {table.tableRows} rows, Temp: {table.tableTemp}, Length: {table.tableItemLength}
                   </p>
                 </div>
-                <button
-                  onClick={() => loadSavedTable(table)}
-                  className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-3 rounded text-sm"
-                >
-                  Load Table
-                </button>
+                <div className="flex space-x-2 mt-2 sm:mt-0 self-end sm:self-center">
+                  <button
+                    onClick={() => loadSavedTable(table)}
+                    className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-3 rounded text-sm transition-colors duration-150"
+                    disabled={isDeletingTable}
+                  >
+                    Load
+                  </button>
+                  <button
+                    onClick={() => handleDeleteTable(table.id)}
+                    className="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-3 rounded text-sm transition-colors duration-150"
+                    disabled={isDeletingTable}
+                  >
+                    {isDeletingTable ? "Deleting..." : "Delete"}
+                  </button>
+                </div>
               </li>
             ))}
           </ul>
@@ -436,7 +496,7 @@ Only include additional columns if requested in the description.`;
       )}
       {currentUser && savedTables.length === 0 && !fetchTablesError && (
         <section className="my-8 w-full max-w-4xl">
-          <p className="text-neutral-400">You have no saved tables yet. Generate and save a table to see it here!</p>
+          <p className="text-neutral-400 text-center">You have no saved tables yet. Generate and save a table to see it here!</p>
         </section>
       )}
 

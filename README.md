@@ -1,8 +1,8 @@
-# TableGenAI
+# Castor's Tables
 
 ## Overview
 
-TableGenAI is a web-based application designed for TTRPG (Tabletop Role-Playing Game) players, writers, and artists. It leverages the Gemini API to generate custom tables of items, characters, locations, or any other prompts that can be used for inspiration in games, writing, or art creation. Users can create accounts, save their generated tables, and access them later. The goal is to provide a simple and intuitive tool for users to quickly generate and manage creative content tailored to their needs.
+Castor's Tables is a web-based application designed for TTRPG (Tabletop Role-Playing Game) players, writers, and artists. It leverages the Gemini API to generate custom tables of items, characters, locations, or any other prompts that can be used for inspiration in games, writing, or art creation. Users can create accounts, save their generated tables, and access them later. The goal is to provide a simple and intuitive tool for users to quickly generate and manage creative content tailored to their needs.
 
 **Live Application:** [https://tablegenproj.web.app](https://tablegenproj.web.app)
 
@@ -30,34 +30,48 @@ TableGenAI is a web-based application designed for TTRPG (Tabletop Role-Playing 
     *   **Authentication:** Firebase Authentication
     *   **Database:** Firestore
     *   **Hosting:** Firebase Hosting
-*   **State Management:** React Context API (for Auth, as seen in `AuthContext.tsx`)
+*   **State Management:** React Context API (for Auth, as seen in `src/store/AuthContext.tsx`)
+*   **Interfaces:** Centralized TypeScript interfaces in `src/interfaces/interfaces.ts`
 
 ## Project Structure (Key Files)
 
 ```
 /src
-├── App.tsx             # Main application component, routing logic
-├── main.tsx            # Entry point of the React application
-├── TableDisplay.tsx    # Component for rendering the table
-├── TableForm.tsx       # Component for the input form
+├── App.tsx                     # Main application component, routing logic, core layout
+├── main.tsx                    # Entry point of the React application
+├── index.css                   # Global styles and Tailwind CSS imports
+├── vite-env.d.ts               # TypeScript definitions for Vite environment variables
+├── assets/
+│   └── react.svg               # Example static asset
+├── components/
+│   ├── LoginButton.tsx         # UI component for initiating login
+│   ├── LoginModal.tsx          # Modal component for login/signup form
+│   ├── TableDisplay.tsx        # Component for rendering the generated table
+│   └── TableForm.tsx           # Component for the table generation input form
 ├── firebase/
-│   └── BaseConfig.ts   # Firebase app initialization and service exports
-├── store/
-│   └── AuthContext.tsx # React Context for managing authentication state
-├── components/         # (Likely location for UI components like Login, Signup, Navbar)
-│   └── ...
-├── pages/              # (Likely location for page components like HomePage, DashboardPage)
-│   └── ...
-├── index.css           # Global styles and Tailwind CSS imports
-└── ...                 # Other assets and components
+│   ├── AuthService.ts          # Service for Firebase Authentication logic
+│   ├── BaseConfig.ts           # Firebase app initialization and service exports
+│   └── FirestoreService.ts       # Service for Firestore database interactions
+├── interfaces/
+│   └── interfaces.ts           # Shared TypeScript interfaces (e.g., TableProps, User)
+└── store/
+    └── AuthContext.tsx         # React Context for managing authentication state
+
 public/
-├── ...                 # Static assets
-README.md               # This file
-package.json            # Project dependencies and scripts
-vite.config.ts        # Vite configuration
-tsconfig.json         # TypeScript configuration
-firebase.json         # Firebase CLI configuration (includes hosting details)
-.firebaserc           # Firebase project configuration
+├── ...                         # Static assets (e.g., favicon.ico, index.html template)
+
+README.md                       # This file
+package.json                    # Project dependencies and scripts
+.env                            # Environment variables (Gitignored - create your own)
+.gitignore                      # Specifies intentionally untracked files that Git should ignore
+firebase.json                   # Firebase CLI configuration (hosting, Firestore rules, etc.)
+.firebaserc                     # Firebase project association
+index.html                      # Main HTML entry point (managed by Vite)
+postcss.config.js               # PostCSS configuration (for Tailwind CSS)
+tailwind.config.js              # Tailwind CSS configuration
+tsconfig.json                   # TypeScript compiler options for the project
+tsconfig.node.json              # TypeScript compiler options for Node.js specific files (e.g., vite.config.ts)
+vite.config.ts                  # Vite build tool configuration
 ```
 
 ## Setup and Installation (for Local Development)
@@ -82,7 +96,7 @@ While the application is deployed live at [https://tablegenproj.web.app](https:/
     ```
 
 4.  **Set up Environment Variables:**
-    Create a `.env` file in the root of your project directory. You'll need to add your Firebase project configuration and your Gemini API key:
+    Create a `.env` file in the root of your project directory by copying `.env.example` (if provided) or creating it manually. You'll need to add your Firebase project configuration and your Gemini API key:
     ```env
     VITE_GEMINI_API_KEY=YOUR_GEMINI_API_KEY_HERE
 
@@ -125,8 +139,7 @@ While the application is deployed live at [https://tablegenproj.web.app](https:/
 
 *   Ability to re-roll individual rows in a table.(next)
 *   Ability to generate images from individual rows in a table.(soon)
-*   More advanced table customization options (e.g., specific column types, editing saved tables directly).
-*   Sharing tables with other users.
+*   Sharing tables with other users. (soon)
 *   Direct integration with TTRPG platforms.(far future)
 
 ## Contributing
@@ -135,4 +148,4 @@ While the application is deployed live at [https://tablegenproj.web.app](https:/
 
 ## License
 
-(Specify the license for the project, e.g., MIT, Apache 2.0.)
+TBD
